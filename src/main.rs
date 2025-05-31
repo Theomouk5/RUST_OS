@@ -8,21 +8,24 @@ use crate::vga_buffer::{ ColorCode, Color, BUFFER_HEIGHT };
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-   println_c!(0, ColorCode::new(Color::Red, Color::Black), "{}", info);
+   println_with!(0, ColorCode::new(Color::Red, Color::Black), "{}", info);
     loop {}
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn _start() -> ! {
-    print_c!(30, ColorCode::new(Color::LightBlue, Color::LightBlue), "**************");
+    print_with!(30, ColorCode::new(Color::LightBlue, Color::LightBlue), "**************");
     print!("\n");
-    print_c!(30, ColorCode::new(Color::White, Color::LightBlue),     " RUST KERNEL! ");
+    print_with!(30, ColorCode::new(Color::White, Color::LightBlue),     " RUST KERNEL! ");
     print!("\n");
-    print_c!(30, ColorCode::new(Color::LightBlue, Color::LightBlue), "**************");
+    print_with!(30, ColorCode::new(Color::LightBlue, Color::LightBlue), "**************");
     print!("\n");
 
     for _i in 0..(BUFFER_HEIGHT / 2) {
         println!();
     }
+
+    println!("Hello World {:b}", 493);
+
     loop {}
 }

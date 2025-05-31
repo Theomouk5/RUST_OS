@@ -47,6 +47,11 @@ struct ScreenChar {
 pub const BUFFER_HEIGHT: usize = 25;
 pub const BUFFER_WIDTH: usize = 80;
 
+const BLANK: ScreenChar = ScreenChar {
+    ascii_character: b' ',
+    color_code: ColorCode((Color::Black as u8) << 4 | (Color::Yellow as u8)),
+};
+
 #[repr(transparent)]
 struct Buffer {
     chars: [[Volatile<ScreenChar>; BUFFER_WIDTH]; BUFFER_HEIGHT],
@@ -114,13 +119,30 @@ impl Writer {
     }
 
     fn clear_row(&mut self, row: usize) {
-        let blank = ScreenChar {
-            ascii_character: b' ',
-            color_code: self.color_code,
-        };
         for col in 0..BUFFER_WIDTH {
-            self.buffer.chars[row][col].write(blank);
+            self.buffer.chars[row][col].write(BLANK);
         }
+    }
+
+    fn clear_all(&mut self) {
+        for row in 0..BUFFER_HEIGHT {
+            for col in 0..BUFFER_WIDTH {
+                self.buffer.chars[row][col].write(BLANK);
+            }
+        }
+    }
+
+    fn write_fmt_with(&mut self, args: fmt::Arguments, color: ColorCode, col: usize) -> fmt::Result {
+        use core::fmt::Write;
+
+        let old_color = self.color_code;
+        self.color_code = color;
+        self.column_position = col;
+
+        let result = self.write_fmt(args);
+        self.color_code = old_color;
+        
+        result
     }
 }
 
@@ -139,8 +161,8 @@ macro_rules! print {
 }
 
 #[macro_export]
-macro_rules! print_c {
-    ($column:expr, $color:expr, $($arg:tt)*) => ($crate::vga_buffer::_print_c(format_args!($($arg)*), $color as ColorCode, $column as usize));
+macro_rules! print_with {
+    ($column:expr, $color:expr, $($arg:tt)*) => ($crate::vga_buffer::_print_with(format_args!($($arg)*), $color as ColorCode, $column as usize));
 }
 
 #[macro_export]
@@ -150,9 +172,9 @@ macro_rules! println {
 }
 
 #[macro_export]
-macro_rules! println_c {
+macro_rules! println_with {
     () => ($crate::print!("\n"));
-    ($column:literal, $color:expr, $($arg:tt)*) => ($crate::print_c!($column, $color, "{}\n", format_args!($($arg)*)));
+    ($column:literal, $color:expr, $($arg:tt)*) => ($crate::print_with!($column, $color, "{}\n", format_args!($($arg)*)));
 }
 
 #[doc(hidden)]
@@ -162,12 +184,11 @@ pub fn _print(args: fmt::Arguments) {
 }
 
 #[doc(hidden)]
-pub fn _print_c(args: fmt::Arguments, color_code: ColorCode, col: usize) {
-    use core::fmt::Write;
-    let mut writer = Writer {
-        column_position: col,
-        color_code,
-        buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
-    };
-    writer.write_fmt(args).unwrap();
+pub fn _print_with(args: fmt::Arguments, color_code: ColorCode, col: usize) {
+    WRITER.lock().write_fmt_with(args, color_code, col).unwrap();
+}
+
+#[allow(dead_code)]
+pub fn clear_screen() {
+   WRITER.lock().clear_all(); 
 }
