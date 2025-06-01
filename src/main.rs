@@ -4,28 +4,17 @@
 mod vga_buffer;
 
 use core::panic::PanicInfo;
-use crate::vga_buffer::{ ColorCode, Color, BUFFER_HEIGHT };
+use crate::vga_buffer::{ ColorCode, Color };
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-   println_with!(0, ColorCode::new(Color::Red, Color::Black), "{}", info);
+   println_at!(None, 0, ColorCode::new(Color::Red, Color::Black), "{}", info);
     loop {}
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn _start() -> ! {
-    print_with!(30, ColorCode::new(Color::LightBlue, Color::LightBlue), "**************");
-    print!("\n");
-    print_with!(30, ColorCode::new(Color::White, Color::LightBlue),     " RUST KERNEL! ");
-    print!("\n");
-    print_with!(30, ColorCode::new(Color::LightBlue, Color::LightBlue), "**************");
-    print!("\n");
-
-    for _i in 0..(BUFFER_HEIGHT / 2) {
-        println!();
-    }
-
-    println!("Hello World {:b}", 493);
+    println_at!(None, 0, ColorCode::new(Color::LightRed, Color::Black), "Hello world");
 
     loop {}
 }

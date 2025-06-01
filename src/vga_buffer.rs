@@ -61,6 +61,7 @@ struct Buffer {
 /// Ce buffer possède toutes les infos sur les différents chars affichés à l'écran 
 pub struct Writer {
     column_position: usize,
+    row_position : usize,
     color_code: ColorCode,
     buffer: &'static mut Buffer,
 }
@@ -82,7 +83,11 @@ impl Writer {
                     self.new_line();
                 }
 
-                let row = BUFFER_HEIGHT - 1;
+                let row = if self.row_position >= (BUFFER_HEIGHT - 1) {
+                    BUFFER_HEIGHT - 1
+                } else {
+                    self.row_position
+                };
                 let col = self.column_position;
                 let color_code = self.color_code;
                 
@@ -108,12 +113,17 @@ impl Writer {
     }
 
     fn new_line(&mut self) {
-        for row in 1..BUFFER_HEIGHT {
-            for col in 0..BUFFER_WIDTH {
-                let character = self.buffer.chars[row][col].read();
-                self.buffer.chars[row - 1][col].write(character);
+        if self.row_position >= (BUFFER_HEIGHT - 1) {
+            for row in 1..BUFFER_HEIGHT {
+                for col in 0..BUFFER_WIDTH {
+                    let character = self.buffer.chars[row][col].read();
+                    self.buffer.chars[row - 1][col].write(character);
+                }
             }
+        } else {
+            self.row_position += 1;  
         }
+
         self.clear_row(BUFFER_HEIGHT - 1);
         self.column_position = 0;
     }
@@ -128,16 +138,23 @@ impl Writer {
         for row in 0..BUFFER_HEIGHT {
             for col in 0..BUFFER_WIDTH {
                 self.buffer.chars[row][col].write(BLANK);
+                self.column_position = 0;
+                self.row_position = 0;
             }
         }
     }
 
-    fn write_fmt_with(&mut self, args: fmt::Arguments, color: ColorCode, col: usize) -> fmt::Result {
+    fn write_fmt_at(&mut self, row: Option<usize>, column: usize, color: ColorCode, args: fmt::Arguments) -> fmt::Result {
         use core::fmt::Write;
 
         let old_color = self.color_code;
+        
         self.color_code = color;
-        self.column_position = col;
+        self.column_position = column;
+        self.row_position = match row {
+            Some(r) => r,
+            None => self.row_position,
+        };
 
         let result = self.write_fmt(args);
         self.color_code = old_color;
@@ -150,6 +167,7 @@ lazy_static! {
     /// le Writer global (1 thread à la fois)
     pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
         column_position: 0,
+        row_position: 0,
         color_code: ColorCode::new(Color::Yellow, Color::Black),
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
     });
@@ -161,8 +179,8 @@ macro_rules! print {
 }
 
 #[macro_export]
-macro_rules! print_with {
-    ($column:expr, $color:expr, $($arg:tt)*) => ($crate::vga_buffer::_print_with(format_args!($($arg)*), $color as ColorCode, $column as usize));
+macro_rules! print_at {
+    ($row:expr, $column:expr, $color:expr, $($arg:tt)*) => ($crate::vga_buffer::_print_at($row as Option<usize>, $column as usize, $color as ColorCode, format_args!($($arg)*)));
 }
 
 #[macro_export]
@@ -172,9 +190,9 @@ macro_rules! println {
 }
 
 #[macro_export]
-macro_rules! println_with {
+macro_rules! println_at {
     () => ($crate::print!("\n"));
-    ($column:literal, $color:expr, $($arg:tt)*) => ($crate::print_with!($column, $color, "{}\n", format_args!($($arg)*)));
+    ($row:expr, $column:expr, $color:expr, $($arg:tt)*) => ($crate::print_at!($row, $column, $color, "{}\n", format_args!($($arg)*)));
 }
 
 #[doc(hidden)]
@@ -184,11 +202,16 @@ pub fn _print(args: fmt::Arguments) {
 }
 
 #[doc(hidden)]
-pub fn _print_with(args: fmt::Arguments, color_code: ColorCode, col: usize) {
-    WRITER.lock().write_fmt_with(args, color_code, col).unwrap();
+pub fn _print_at(row: Option<usize>, col: usize, color: ColorCode, args: fmt::Arguments) {
+    WRITER.lock().write_fmt_at(row, col, color, args).unwrap();
 }
 
 #[allow(dead_code)]
+/// Nettoie l'écran
 pub fn clear_screen() {
    WRITER.lock().clear_all(); 
 }
+
+// #[allow(dead_code)]
+// /// affiche de manière centré horizontalement
+// pub fn write_centered
