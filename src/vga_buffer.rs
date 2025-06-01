@@ -106,6 +106,7 @@ impl Writer {
             match byte {
                 // printable ASCII byte or newline
                 0x20..=0x7e | b'\n' => self.write_byte(byte),
+                //exeception
                 // not part of printable ASCII range
                 _ => self.write_byte(0xfe),
             }
@@ -168,7 +169,7 @@ lazy_static! {
     pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
         column_position: 0,
         row_position: 0,
-        color_code: ColorCode::new(Color::Yellow, Color::Black),
+        color_code: ColorCode::new(Color:: White, Color::Black),
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
     });
 }
@@ -212,6 +213,22 @@ pub fn clear_screen() {
    WRITER.lock().clear_all(); 
 }
 
-// #[allow(dead_code)]
-// /// affiche de manière centré horizontalement
-// pub fn write_centered
+#[allow(dead_code)]
+/// affiche de manière centré horizontalement
+pub fn write_centered(row: Option<usize>, color: ColorCode, text: &str) {
+    let column = (BUFFER_WIDTH - text.chars().count()) / 2;
+    println_at!(row, column, color, "{}", text);
+}
+
+#[allow(dead_code)]
+/// Message Bienvenu
+pub fn welcome() {
+    write_centered(None, ColorCode::new(Color::White, Color::Black) , "---------------------------------------------------------------");
+    write_centered(None, ColorCode::new(Color::White, Color::Black) , "|                                                             |");
+    write_centered(None, ColorCode::new(Color::White, Color::Black) , "|                                                             |");
+    write_centered(None, ColorCode::new(Color::White, Color::Black) , "|                   WELCOME IN MY KERNEL :)                   |");
+    write_centered(None, ColorCode::new(Color::White, Color::Black) , "|                  System initialization ...                  |");
+    write_centered(None, ColorCode::new(Color::White, Color::Black) , "|                                                             |");
+    write_centered(None, ColorCode::new(Color::White, Color::Black) , "|                                                             |");
+    write_centered(None, ColorCode::new(Color::White, Color::Black) , "|_____________________________________________________________|");
+}

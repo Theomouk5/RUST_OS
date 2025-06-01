@@ -4,7 +4,7 @@
 mod vga_buffer;
 
 use core::panic::PanicInfo;
-use crate::vga_buffer::{ ColorCode, Color };
+use crate::vga_buffer::{ ColorCode, Color, welcome };
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
@@ -14,7 +14,7 @@ fn panic(info: &PanicInfo) -> ! {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn _start() -> ! {
-    println_at!(None, 0, ColorCode::new(Color::LightRed, Color::Black), "Hello world");
+    welcome();
 
     loop {}
 }
